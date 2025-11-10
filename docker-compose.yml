@@ -1,15 +1,50 @@
 version: '3.8'
+
 services:
   max-bot:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: max-productivity-bot
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - TZ=Europe/Moscow
     restart: unless-stopped
+    volumes:
+      # Для персистентной базы данных (если перейдем с in-memory)
+      - ./data:/app/data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
+    labels:
+      - "description=MAX Productivity Bot"
+      - "version=1.0.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Опционально: можно добавить мониторинг
+  # bot-monitor:
+  #   image: alpine
+  #   container_name: bot-health-monitor
+  #   command: |
+  #     sh -c "
+  #     while true; do
+  #       if wget -q --spider http://max-bot:3000/health; then
+  #         echo '✅ Bot is healthy'
+  #       else
+  #         echo '❌ Bot is down!'
+  #       fi
+  #       sleep 60
+  #     done
+  #     "
+  #   depends_on:
+  #     - max-bot

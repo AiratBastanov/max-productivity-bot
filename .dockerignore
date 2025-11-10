@@ -1,0 +1,22 @@
+# Игнорируем ненужные файлы в Docker образе
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.dockerignore
+.env
+.nyc_output
+coverage
+.nyc_output
+.coverage
+.coverage.*
+.cache
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+*.tsbuildinfo
