@@ -7,6 +7,7 @@ const pomodoroHandler = require('./handlers/pomodoro');
 const moodHandler = require('./handlers/mood');
 const statsHandler = require('./handlers/stats');
 const reminderSystem = require('./utils/reminders');
+const maxWebhook = require('./max-webhook');
 const { mainMenu } = require('./utils/keyboards');
 
 const app = express();
@@ -17,26 +18,52 @@ app.use(bodyParser.json());
 // Хранилище состояний пользователей
 const userStates = new Map();
 
-// Главный обработчик вебхука
+// Верификация вебхука от MAX
+app.use('/webhook', (req, res, next) => {
+  // TODO: Добавить верификацию подписи если нужно
+  console.log('MAX Webhook received:', req.method, req.path);
+  next();
+});
+
+// Главный обработчик вебхука от MAX
 app.post('/webhook', async (req, res) => {
-  console.log('Received webhook:', JSON.stringify(req.body, null, 2));
+  console.log('Received MAX webhook:', JSON.stringify(req.body, null, 2));
   
-  const { message, user } = req.body;
+  const { message, user, type } = req.body;
+  
+  if (type !== 'message_received') {
+    return res.status(200).json({ status: 'ignored' });
+  }
   
   if (!message || !user) {
     return res.status(400).json({ error: 'Invalid webhook format' });
   }
 
   try {
-    const response = await handleMessage(message, user);
-    res.json(response);
+    // Отправляем подтверждение получения
+    res.status(200).json({ status: 'received' });
+    
+    // Обрабатываем сообщение асинхронно
+    setTimeout(async () => {
+      try {
+        const response = await handleMessage(message, user);
+        
+        // Отправляем ответ пользователю через MAX API
+        await maxWebhook.sendMessage(user.id, response.text, response.keyboard);
+        
+      } catch (error) {
+        console.error('Error processing message:', error);
+        await maxWebhook.sendMessage(user.id, '❌ Произошла ошибка при обработке сообщения.');
+      }
+    }, 100);
+    
   } catch (error) {
-    console.error('Error handling message:', error);
+    console.error('Error handling webhook:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Обработчик сообщений
+// Обработчик сообщений (остается без изменений)
 async function handleMessage(message, user) {
   const text = message.text.toLowerCase().trim();
   const userId = user.id;
@@ -71,9 +98,9 @@ async function handleMessage(message, user) {
   }
 }
 
-// Обработка состояний пользователя
+// Обработка состояний пользователя (остается без изменений)
 async function handleUserState(userId, text, userState) {
-  userStates.delete(userId); // Очищаем состояние
+  userStates.delete(userId);
 
   switch (userState.state) {
     case 'awaiting_task_title':
@@ -98,39 +125,9 @@ async function handleUserState(userId, text, userState) {
   }
 }
 
-// Установка состояния пользователя
+// Установка состояния пользователя (остается без изменений)
 function setUserState(userId, state, data = {}) {
   userStates.set(userId, { state, ...data, timestamp: Date.now() });
-}
-
-// Очистка устаревших состояний (каждые 10 минут)
-setInterval(() => {
-  const now = Date.now();
-  const timeout = 30 * 60 * 1000; // 30 минут
-  
-  for (const [userId, state] of userStates.entries()) {
-    if (now - state.timestamp > timeout) {
-      userStates.delete(userId);
-      console.log(`Cleared expired state for user ${userId}`);
-    }
-  }
-}, 10 * 60 * 1000);
-
-// Заглушки для обработчиков (теперь реализованы)
-async function handleHabits(text, userId) {
-  return await habitsHandler.handleMessage(text, userId);
-}
-
-async function handlePomodoro(text, userId) {
-  return await pomodoroHandler.handleMessage(text, userId);
-}
-
-async function handleMood(text, userId) {
-  return await moodHandler.handleMessage(text, userId);
-}
-
-async function handleStats(text, userId) {
-  return await statsHandler.handleMessage(text, userId);
 }
 
 // Главное меню
@@ -141,7 +138,7 @@ function showMainMenu() {
   };
 }
 
-// Health check с расширенной информацией
+// Health check
 app.get('/health', async (req, res) => {
   try {
     const dbStats = await db.all(`
@@ -165,57 +162,49 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Endpoint для ручной отправки напоминаний (для тестирования)
-app.post('/test-reminder/:type', async (req, res) => {
-  const { type } = req.params;
-  const { userId } = req.body;
-  
+// Endpoint для установки вебхука
+app.post('/setup-webhook', async (req, res) => {
   try {
-    let message;
+    const { webhookUrl } = req.body;
     
-    switch (type) {
-      case 'morning':
-        message = await reminderSystem.generateDailyReminder(userId || 12345);
-        break;
-      case 'evening':
-        message = await reminderSystem.generateEveningReminder(userId || 12345);
-        break;
-      case 'habits':
-        message = await reminderSystem.generateHabitReminder(userId || 12345);
-        break;
-      default:
-        return res.status(400).json({ error: 'Invalid reminder type' });
+    if (!webhookUrl) {
+      return res.status(400).json({ error: 'webhookUrl is required' });
     }
+
+    await maxWebhook.setWebhook(webhookUrl);
+    res.json({ status: 'Webhook set successfully' });
     
-    res.json({ message });
   } catch (error) {
-    console.error('Error generating test reminder:', error);
-    res.status(500).json({ error: 'Failed to generate reminder' });
+    console.error('Error setting webhook:', error);
+    res.status(500).json({ error: 'Failed to set webhook' });
   }
 });
 
-// Endpoint для получения статистики пользователя
-app.get('/user/:id/stats', async (req, res) => {
-  const userId = parseInt(req.params.id);
-  
+// Endpoint для получения информации о боте
+app.get('/bot-info', async (req, res) => {
   try {
-    const stats = await statsHandler.showOverallStats(userId);
-    res.json(stats);
+    const botInfo = await maxWebhook.getBotInfo();
+    res.json(botInfo);
   } catch (error) {
-    console.error('Error getting user stats:', error);
-    res.status(500).json({ error: 'Failed to get user statistics' });
+    console.error('Error getting bot info:', error);
+    res.status(500).json({ error: 'Failed to get bot info' });
   }
 });
 
 // Запуск сервера
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🤖 MAX Productivity Bot запущен на порту ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`📊 API endpoints:`);
-  console.log(`   GET  /health - проверка здоровья`);
-  console.log(`   POST /webhook - вебхук от MAX`);
-  console.log(`   GET  /user/:id/stats - статистика пользователя`);
-  console.log(`   POST /test-reminder/:type - тест напоминаний`);
+  console.log(`🔧 Webhook setup: POST http://localhost:${PORT}/setup-webhook`);
+  console.log(`🤖 Bot info: GET http://localhost:${PORT}/bot-info`);
+  
+  // Получаем информацию о боте при запуске
+  try {
+    await maxWebhook.getBotInfo();
+  } catch (error) {
+    console.log('⚠️  Cannot connect to MAX API. Check your token.');
+  }
 });
 
+// Экспортируем для тестов
 module.exports = app;
