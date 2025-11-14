@@ -1,8 +1,21 @@
 const db = require('../database');
-const { moodKeyboard, mainMenu } = require('../utils/keyboards');
+const { Keyboard } = require('@maxhub/max-bot-api');
+const { setUserState } = require('../index');
 
 class MoodHandler {
   async handleMessage(text, userId) {
+    const moodKeyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.message('😊 Отлично'),
+        Keyboard.button.message('😐 Нормально'),
+        Keyboard.button.message('😔 Плохо')
+      ],
+      [
+        Keyboard.button.message('📈 История'),
+        Keyboard.button.message('🎯 Главное меню')
+      ]
+    ]);
+
     if (text.includes('отлично') || text.includes('😊')) {
       return this.recordMood(userId, 5, 'Отлично');
     } else if (text.includes('нормально') || text.includes('😐')) {
@@ -29,7 +42,6 @@ class MoodHandler {
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // Проверяем, не записано ли уже настроение на сегодня
       const existingMood = await db.get(
         'SELECT * FROM moods WHERE user_id = ? AND date(created_at) = ?',
         [userId, today]
@@ -49,18 +61,35 @@ class MoodHandler {
 
       const response = this._getMoodResponse(score, moodText);
       
+      const moodStatsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📈 История настроения'),
+          Keyboard.button.message('📊 Анализ трендов')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: response,
-        keyboard: {
-          buttons: [
-            [{ text: '📈 История настроения' }, { text: '📊 Анализ трендов' }],
-            [{ text: '🎯 Главное меню' }]
-          ]
-        }
+        keyboard: moodStatsKeyboard
       };
 
     } catch (error) {
       console.error('Error recording mood:', error);
+      const moodKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('😊 Отлично'),
+          Keyboard.button.message('😐 Нормально'),
+          Keyboard.button.message('😔 Плохо')
+        ],
+        [
+          Keyboard.button.message('📈 История'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при сохранении настроения.',
         keyboard: moodKeyboard
@@ -91,6 +120,18 @@ class MoodHandler {
       );
 
       if (moods.length === 0) {
+        const moodKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('😊 Отлично'),
+            Keyboard.button.message('😐 Нормально'),
+            Keyboard.button.message('😔 Плохо')
+          ],
+          [
+            Keyboard.button.message('📈 История'),
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
+
         return {
           text: '📝 У вас пока нет записей о настроении.\n\nНачните отслеживать своё настроение!',
           keyboard: moodKeyboard
@@ -105,22 +146,38 @@ class MoodHandler {
         history += `${date}: ${moodEmoji} ${mood.notes}\n`;
       });
 
-      // Добавляем статистику
       const avgMood = await this._calculateAverageMood(userId);
       history += `\n📊 Среднее настроение: ${avgMood.toFixed(1)}/5 ${this._getMoodEmoji(Math.round(avgMood))}`;
 
+      const historyKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📊 Подробный анализ'),
+          Keyboard.button.message('😊 Отметить настроение')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: history,
-        keyboard: {
-          buttons: [
-            [{ text: '📊 Подробный анализ' }, { text: '😊 Отметить настроение' }],
-            [{ text: '🎯 Главное меню' }]
-          ]
-        }
+        keyboard: historyKeyboard
       };
 
     } catch (error) {
       console.error('Error showing mood history:', error);
+      const moodKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('😊 Отлично'),
+          Keyboard.button.message('😐 Нормально'),
+          Keyboard.button.message('😔 Плохо')
+        ],
+        [
+          Keyboard.button.message('📈 История'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при загрузке истории настроения.',
         keyboard: moodKeyboard
@@ -143,6 +200,18 @@ class MoodHandler {
       );
 
       if (moodStats.length === 0) {
+        const moodKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('😊 Отлично'),
+            Keyboard.button.message('😐 Нормально'),
+            Keyboard.button.message('😔 Плохо')
+          ],
+          [
+            Keyboard.button.message('📈 История'),
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
+
         return {
           text: '📊 Нет данных для анализа.\n\nНачните отслеживать настроение!',
           keyboard: moodKeyboard
@@ -168,18 +237,35 @@ class MoodHandler {
       analysis += `• Всего записей: ${moodStats.reduce((sum, stat) => sum + stat.count, 0)}\n\n`;
       analysis += `💡 **Совет:** ${this._getMoodAdvice(avgMood)}`;
 
+      const analysisKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📈 История'),
+          Keyboard.button.message('😊 Отметить сегодня')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: analysis,
-        keyboard: {
-          buttons: [
-            [{ text: '📈 История' }, { text: '😊 Отметить сегодня' }],
-            [{ text: '🎯 Главное меню' }]
-          ]
-        }
+        keyboard: analysisKeyboard
       };
 
     } catch (error) {
       console.error('Error showing mood analysis:', error);
+      const moodKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('😊 Отлично'),
+          Keyboard.button.message('😐 Нормально'),
+          Keyboard.button.message('😔 Плохо')
+        ],
+        [
+          Keyboard.button.message('📈 История'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при анализе настроения.',
         keyboard: moodKeyboard
@@ -208,7 +294,7 @@ class MoodHandler {
     let bestStreak = 0;
 
     for (let mood of moods) {
-      if (mood.mood_score >= 4) { // Хорошее настроение (4-5)
+      if (mood.mood_score >= 4) {
         currentStreak++;
         bestStreak = Math.max(bestStreak, currentStreak);
       } else {
@@ -248,59 +334,82 @@ class MoodHandler {
     return 'Помните, что можно всегда обратиться за поддержкой. Вы не одни!';
   }
 
-    async recordMoodWithNote(userId, score, moodText) {
-        setUserState(userId, 'awaiting_mood_note', { moodScore: score, moodText });
-        
-        return {
-            text: `📝 **${moodText}**\n\nХотите добавить заметку о своём настроении? (или напишите "пропустить")`,
-            keyboard: {
-            buttons: [
-                [{ text: 'Пропустить' }],
-                [{ text: '🎯 Главное меню' }]
-            ]
-            }
-        };
-        }
+  async recordMoodWithNote(userId, score, moodText) {
+    setUserState(userId, 'awaiting_mood_note', { moodScore: score, moodText });
+    
+    const noteKeyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.message('Пропустить')],
+      [Keyboard.button.message('🎯 Главное меню')]
+    ]);
 
-        async saveMoodWithNote(userId, score, note) {
-        try {
-            const today = new Date().toISOString().split('T')[0];
-            
-            if (note.toLowerCase() === 'пропустить') {
-            note = '';
-            }
+    return {
+      text: `📝 **${moodText}**\n\nХотите добавить заметку о своём настроении? (или напишите "пропустить")`,
+      keyboard: noteKeyboard
+    };
+  }
 
-            // Проверяем, не записано ли уже настроение на сегодня
-            const existingMood = await db.get(
-            'SELECT * FROM moods WHERE user_id = ? AND date(created_at) = ?',
-            [userId, today]
-            );
+  async saveMoodWithNote(userId, score, note) {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      if (note.toLowerCase() === 'пропустить') {
+        note = '';
+      }
 
-            if (existingMood) {
-            await db.run(
-                'UPDATE moods SET mood_score = ?, notes = ? WHERE id = ?',
-                [score, note || 'Без заметки', existingMood.id]
-            );
-            } else {
-            await db.run(
-                'INSERT INTO moods (user_id, mood_score, notes) VALUES (?, ?, ?)',
-                [userId, score, note || 'Без заметки']
-            );
-            }
+      const existingMood = await db.get(
+        'SELECT * FROM moods WHERE user_id = ? AND date(created_at) = ?',
+        [userId, today]
+      );
 
-            return {
-            text: `✅ Настроение сохранено! ${note ? `Заметка: "${note}"` : ''}`,
-            keyboard: moodKeyboard
-            };
+      if (existingMood) {
+        await db.run(
+          'UPDATE moods SET mood_score = ?, notes = ? WHERE id = ?',
+          [score, note || 'Без заметки', existingMood.id]
+        );
+      } else {
+        await db.run(
+          'INSERT INTO moods (user_id, mood_score, notes) VALUES (?, ?, ?)',
+          [userId, score, note || 'Без заметки']
+        );
+      }
 
-        } catch (error) {
-            console.error('Error saving mood with note:', error);
-            return {
-            text: '❌ Произошла ошибка при сохранении настроения.',
-            keyboard: moodKeyboard
-            };
-        }
+      const moodKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('😊 Отлично'),
+          Keyboard.button.message('😐 Нормально'),
+          Keyboard.button.message('😔 Плохо')
+        ],
+        [
+          Keyboard.button.message('📈 История'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
+      return {
+        text: `✅ Настроение сохранено! ${note ? `Заметка: "${note}"` : ''}`,
+        keyboard: moodKeyboard
+      };
+
+    } catch (error) {
+      console.error('Error saving mood with note:', error);
+      const moodKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('😊 Отлично'),
+          Keyboard.button.message('😐 Нормально'),
+          Keyboard.button.message('😔 Плохо')
+        ],
+        [
+          Keyboard.button.message('📈 История'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
+      return {
+        text: '❌ Произошла ошибка при сохранении настроения.',
+        keyboard: moodKeyboard
+      };
     }
+  }
 }
 
 module.exports = new MoodHandler();

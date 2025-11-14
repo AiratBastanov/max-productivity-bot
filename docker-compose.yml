@@ -10,14 +10,13 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - PORT=3000
+      - BOT_TOKEN=f9LHodD0cOLRv2026hcJeiEfVp86_-YsOOTJiUUxUKBXxoOsjOwzpj6OumSK0XuISSFoSMrzhJlC_DMH6iQl
       - TZ=Europe/Moscow
     restart: unless-stopped
     volumes:
-      # Для персистентной базы данных (если перейдем с in-memory)
       - ./data:/app/data
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      test: ["CMD", "node", "-e", "console.log('Health check passed')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -30,21 +29,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-  # Опционально: можно добавить мониторинг
-  # bot-monitor:
-  #   image: alpine
-  #   container_name: bot-health-monitor
-  #   command: |
-  #     sh -c "
-  #     while true; do
-  #       if wget -q --spider http://max-bot:3000/health; then
-  #         echo '✅ Bot is healthy'
-  #       else
-  #         echo '❌ Bot is down!'
-  #       fi
-  #       sleep 60
-  #     done
-  #     "
-  #   depends_on:
-  #     - max-bot

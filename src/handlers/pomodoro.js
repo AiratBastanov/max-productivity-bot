@@ -1,13 +1,24 @@
 const db = require('../database');
-const { pomodoroKeyboard, mainMenu } = require('../utils/keyboards');
+const { Keyboard } = require('@maxhub/max-bot-api');
 
 class PomodoroHandler {
   constructor() {
-    this.sessions = new Map(); // user_id -> session_data
-    this.intervals = new Map(); // user_id -> interval
+    this.sessions = new Map();
+    this.intervals = new Map();
   }
 
   async handleMessage(text, userId) {
+    const pomodoroKeyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.message('🍅 Старт 25 мин'),
+        Keyboard.button.message('⏸️ Пауза')
+      ],
+      [
+        Keyboard.button.message('📊 Статистика'),
+        Keyboard.button.message('🎯 Главное меню')
+      ]
+    ]);
+
     if (text.includes('старт') || text.includes('начать') || text.includes('25')) {
       return this.startSession(userId);
     } else if (text.includes('пауз') || text.includes('⏸️')) {
@@ -27,12 +38,11 @@ class PomodoroHandler {
   }
 
   startSession(userId) {
-    // Останавливаем предыдущую сессию если есть
     this.stopSession(userId);
 
     const session = {
       startTime: new Date(),
-      duration: 25 * 60, // 25 minutes in seconds
+      duration: 25 * 60,
       timeLeft: 25 * 60,
       isRunning: true,
       isBreak: false
@@ -40,33 +50,48 @@ class PomodoroHandler {
 
     this.sessions.set(userId, session);
 
-    // Запускаем таймер
     const interval = setInterval(() => {
       this._updateSession(userId);
     }, 1000);
 
     this.intervals.set(userId, interval);
 
-    // Сохраняем в БД
     db.run(
       'INSERT INTO pomodoro_sessions (user_id, duration, start_time) VALUES (?, ?, ?)',
       [userId, session.duration, session.startTime.toISOString()]
     );
 
+    const sessionKeyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.message('⏸️ Пауза'),
+        Keyboard.button.message('⏹️ Стоп')
+      ],
+      [
+        Keyboard.button.message('📊 Статистика'),
+        Keyboard.button.message('🎯 Главное меню')
+      ]
+    ]);
+
     return {
       text: this._getSessionMessage(userId),
-      keyboard: {
-        buttons: [
-          [{ text: '⏸️ Пауза' }, { text: '⏹️ Стоп' }],
-          [{ text: '📊 Статистика' }, { text: '🎯 Главное меню' }]
-        ]
-      }
+      keyboard: sessionKeyboard
     };
   }
 
   pauseSession(userId) {
     const session = this.sessions.get(userId);
     if (!session || !session.isRunning) {
+      const pomodoroKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🍅 Старт 25 мин'),
+          Keyboard.button.message('⏸️ Пауза')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Нет активной сессии для паузы.',
         keyboard: pomodoroKeyboard
@@ -80,20 +105,36 @@ class PomodoroHandler {
       this.intervals.delete(userId);
     }
 
+    const pauseKeyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.message('▶️ Продолжить'),
+        Keyboard.button.message('⏹️ Стоп')
+      ],
+      [
+        Keyboard.button.message('🎯 Главное меню')
+      ]
+    ]);
+
     return {
       text: `⏸️ **Pomodoro на паузе**\n\nОсталось времени: ${this._formatTime(session.timeLeft)}\n\n"Продолжить" чтобы возобновить.`,
-      keyboard: {
-        buttons: [
-          [{ text: '▶️ Продолжить' }, { text: '⏹️ Стоп' }],
-          [{ text: '🎯 Главное меню' }]
-        ]
-      }
+      keyboard: pauseKeyboard
     };
   }
 
   resumeSession(userId) {
     const session = this.sessions.get(userId);
     if (!session || session.isRunning) {
+      const pomodoroKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🍅 Старт 25 мин'),
+          Keyboard.button.message('⏸️ Пауза')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Нет сессии на паузе.',
         keyboard: pomodoroKeyboard
@@ -108,14 +149,19 @@ class PomodoroHandler {
 
     this.intervals.set(userId, interval);
 
+    const resumeKeyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.message('⏸️ Пауза'),
+        Keyboard.button.message('⏹️ Стоп')
+      ],
+      [
+        Keyboard.button.message('🎯 Главное меню')
+      ]
+    ]);
+
     return {
       text: `▶️ **Pomodoro продолжен!**\n\nОсталось: ${this._formatTime(session.timeLeft)}`,
-      keyboard: {
-        buttons: [
-          [{ text: '⏸️ Пауза' }, { text: '⏹️ Стоп' }],
-          [{ text: '🎯 Главное меню' }]
-        ]
-      }
+      keyboard: resumeKeyboard
     };
   }
 
@@ -132,6 +178,17 @@ class PomodoroHandler {
     }
 
     this.sessions.delete(userId);
+
+    const pomodoroKeyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.message('🍅 Старт 25 мин'),
+        Keyboard.button.message('⏸️ Пауза')
+      ],
+      [
+        Keyboard.button.message('📊 Статистика'),
+        Keyboard.button.message('🎯 Главное меню')
+      ]
+    ]);
 
     return {
       text: '⏹️ **Pomodoro сессия остановлена.**\n\nХорошая работа! Не забудьте сделать перерыв.',
@@ -154,22 +211,18 @@ class PomodoroHandler {
     const session = this.sessions.get(userId);
     if (!session) return;
 
-    // Останавливаем таймер
     const interval = this.intervals.get(userId);
     if (interval) {
       clearInterval(interval);
       this.intervals.delete(userId);
     }
 
-    // Обновляем в БД
     db.run(
       'UPDATE pomodoro_sessions SET completed = TRUE, end_time = ? WHERE user_id = ? AND completed = FALSE',
       [new Date().toISOString(), userId]
     );
 
     this.sessions.delete(userId);
-
-    // Здесь можно добавить отправку уведомления пользователю
     console.log(`Pomodoro session completed for user ${userId}`);
   }
 
@@ -229,12 +282,34 @@ class PomodoroHandler {
                    `• Время: ${Math.round(weekTime / 60)} мин\n\n` +
                    `🎯 Цель: 8 помидорок в день!`;
 
+      const pomodoroKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🍅 Старт 25 мин'),
+          Keyboard.button.message('⏸️ Пауза')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: stats,
         keyboard: pomodoroKeyboard
       };
     } catch (error) {
       console.error('Error showing pomodoro stats:', error);
+      const pomodoroKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🍅 Старт 25 мин'),
+          Keyboard.button.message('⏸️ Пауза')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при загрузке статистики.',
         keyboard: pomodoroKeyboard

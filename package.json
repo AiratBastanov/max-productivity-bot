@@ -9,9 +9,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "@maxhub/max-bot-api": "^1.0.0",
     "sqlite3": "^5.1.6",
-    "body-parser": "^1.20.2",
     "node-cron": "^3.0.3"
   },
   "devDependencies": {

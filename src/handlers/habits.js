@@ -1,8 +1,20 @@
 const db = require('../database');
-const { habitsKeyboard, mainMenu } = require('../utils/keyboards');
+const { Keyboard } = require('@maxhub/max-bot-api');
+const { setUserState } = require('../index');
 
 class HabitsHandler {
   async handleMessage(text, userId) {
+    const habitsKeyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.message('🌱 Новая привычка'),
+        Keyboard.button.message('📊 Мои привычки')
+      ],
+      [
+        Keyboard.button.message('✅ Отметить выполнение'),
+        Keyboard.button.message('🎯 Главное меню')
+      ]
+    ]);
+
     if (text.includes('новая') || text.includes('добав')) {
       return this.addHabit(userId);
     } else if (text.includes('мои') || text.includes('список')) {
@@ -20,12 +32,15 @@ class HabitsHandler {
   }
 
   async addHabit(userId) {
+    setUserState(userId, 'awaiting_habit_name');
+    
+    const cancelKeyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.message('Отмена')]
+    ]);
+
     return {
       text: '🌱 Напишите название новой привычки:',
-      keyboard: {
-        buttons: [[{ text: 'Отмена' }]]
-      },
-      state: 'awaiting_habit_name'
+      keyboard: cancelKeyboard
     };
   }
 
@@ -36,12 +51,32 @@ class HabitsHandler {
         [userId, name]
       );
 
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: `✅ Привычка "${name}" создана! Отмечайте выполнение каждый день.`,
         keyboard: habitsKeyboard
       };
     } catch (error) {
       console.error('Error creating habit:', error);
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при создании привычки.',
         keyboard: habitsKeyboard
@@ -64,6 +99,16 @@ class HabitsHandler {
       );
 
       if (habits.length === 0) {
+        const habitsKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('🌱 Новая привычка'),
+            Keyboard.button.message('📊 Мои привычки')
+          ],
+          [
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
+
         return {
           text: '📝 У вас пока нет привычек. Создайте первую!',
           keyboard: habitsKeyboard
@@ -74,7 +119,6 @@ class HabitsHandler {
       const today = new Date().toISOString().split('T')[0];
 
       for (let habit of habits) {
-        // Проверяем, выполнена ли привычка сегодня
         const todayCheck = await db.get(
           'SELECT * FROM habit_checks WHERE habit_id = ? AND check_date = ?',
           [habit.id, today]
@@ -88,12 +132,33 @@ class HabitsHandler {
 
       habitList += '\nНажмите "Отметить выполнение" чтобы отметить привычки на сегодня.';
 
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('✅ Отметить выполнение'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: habitList,
         keyboard: habitsKeyboard
       };
     } catch (error) {
       console.error('Error listing habits:', error);
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при загрузке привычек.',
         keyboard: habitsKeyboard
@@ -109,6 +174,16 @@ class HabitsHandler {
       );
 
       if (habits.length === 0) {
+        const habitsKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('🌱 Новая привычка'),
+            Keyboard.button.message('📊 Мои привычки')
+          ],
+          [
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
+
         return {
           text: '❌ У вас нет привычек для отметки.',
           keyboard: habitsKeyboard
@@ -116,14 +191,7 @@ class HabitsHandler {
       }
 
       const today = new Date().toISOString().split('T')[0];
-      let markedCount = 0;
 
-      // Создаем клавиатуру для выбора привычек
-      const habitButtons = habits.map(habit => [{ 
-        text: `✅ ${habit.name}` 
-      }]);
-
-      // Если текст содержит конкретную привычку
       if (text !== 'отметить выполнение') {
         const habitName = text.replace('отметить', '').replace('выполнение', '').trim();
         const habit = habits.find(h => 
@@ -132,6 +200,16 @@ class HabitsHandler {
 
         if (habit) {
           await this._markHabitAsCompleted(habit.id, today);
+          const habitsKeyboard = Keyboard.inlineKeyboard([
+            [
+              Keyboard.button.message('🌱 Новая привычка'),
+              Keyboard.button.message('📊 Мои привычки')
+            ],
+            [
+              Keyboard.button.message('🎯 Главное меню')
+            ]
+          ]);
+
           return {
             text: `✅ Привычка "${habit.name}" отмечена как выполненная сегодня!`,
             keyboard: habitsKeyboard
@@ -139,19 +217,38 @@ class HabitsHandler {
         }
       }
 
+      // Создаем кнопки для каждой привычки
+      const habitButtons = habits.map(habit => [
+        Keyboard.button.message(`✅ ${habit.name}`)
+      ]);
+
+      const selectionKeyboard = Keyboard.inlineKeyboard([
+        ...habitButtons,
+        [
+          Keyboard.button.message('✅ Отметить все'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
+      setUserState(userId, 'awaiting_habit_selection');
+
       return {
         text: `📋 **Отметить выполнение привычек**\n\nВыберите привычку для отметки:`,
-        keyboard: {
-          buttons: [
-            ...habitButtons,
-            [{ text: '✅ Отметить все' }, { text: '🎯 Главное меню' }]
-          ]
-        },
-        state: 'awaiting_habit_selection'
+        keyboard: selectionKeyboard
       };
 
     } catch (error) {
       console.error('Error marking habit complete:', error);
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при отметке привычки.',
         keyboard: habitsKeyboard
@@ -160,7 +257,6 @@ class HabitsHandler {
   }
 
   async _markHabitAsCompleted(habitId, date) {
-    // Проверяем, не отмечена ли уже привычка на эту дату
     const existingCheck = await db.get(
       'SELECT * FROM habit_checks WHERE habit_id = ? AND check_date = ?',
       [habitId, date]
@@ -178,12 +274,10 @@ class HabitsHandler {
       );
     }
 
-    // Обновляем счетчик серий
     await this._updateHabitStreak(habitId);
   }
 
   async _updateHabitStreak(habitId) {
-    // Получаем последние 30 дней отметок
     const checks = await db.all(
       `SELECT check_date, completed 
        FROM habit_checks 
@@ -204,7 +298,6 @@ class HabitsHandler {
       }
     }
 
-    // Обновляем streak в привычке
     const habit = await db.get('SELECT * FROM habits WHERE id = ?', [habitId]);
     const bestStreak = Math.max(habit.best_streak, currentStreak);
 
@@ -228,6 +321,16 @@ class HabitsHandler {
       );
 
       if (habits.length === 0) {
+        const habitsKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('🌱 Новая привычка'),
+            Keyboard.button.message('📊 Мои привычки')
+          ],
+          [
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
+
         return {
           text: '📊 У вас пока нет привычек для статистики.',
           keyboard: habitsKeyboard
@@ -247,12 +350,32 @@ class HabitsHandler {
         stats += `✅ Выполнено: ${habit.completed_days}/${habit.total_days} дней (${completionRate}%)\n\n`;
       }
 
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: stats,
         keyboard: habitsKeyboard
       };
     } catch (error) {
       console.error('Error showing habit stats:', error);
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при загрузке статистики.',
         keyboard: habitsKeyboard
@@ -268,6 +391,16 @@ class HabitsHandler {
       );
 
       if (!habit) {
+        const habitsKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('🌱 Новая привычка'),
+            Keyboard.button.message('📊 Мои привычки')
+          ],
+          [
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
+
         return {
           text: '❌ Привычка не найдена.',
           keyboard: habitsKeyboard
@@ -277,52 +410,103 @@ class HabitsHandler {
       const today = new Date().toISOString().split('T')[0];
       await this._markHabitAsCompleted(habit.id, today);
 
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: `✅ Привычка "${habit.name}" отмечена как выполненная! Текущая серия: ${habit.current_streak + 1} дней 🔥`,
         keyboard: habitsKeyboard
       };
     } catch (error) {
       console.error('Error handling habit selection:', error);
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при отметке привычки.',
         keyboard: habitsKeyboard
       };
     }
   }
-    async markAllHabitsComplete(userId) {
-        try {
-            const habits = await db.all(
-            'SELECT * FROM habits WHERE user_id = ?',
-            [userId]
-            );
 
-            if (habits.length === 0) {
-            return {
-                text: '❌ У вас нет привычек для отметки.',
-                keyboard: habitsKeyboard
-            };
-            }
+  async markAllHabitsComplete(userId) {
+    try {
+      const habits = await db.all(
+        'SELECT * FROM habits WHERE user_id = ?',
+        [userId]
+      );
 
-            const today = new Date().toISOString().split('T')[0];
-            let markedCount = 0;
+      if (habits.length === 0) {
+        const habitsKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('🌱 Новая привычка'),
+            Keyboard.button.message('📊 Мои привычки')
+          ],
+          [
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
 
-            for (let habit of habits) {
-            await this._markHabitAsCompleted(habit.id, today);
-            markedCount++;
-            }
+        return {
+          text: '❌ У вас нет привычек для отметки.',
+          keyboard: habitsKeyboard
+        };
+      }
 
-            return {
-            text: `✅ Все ${markedCount} привычек отмечены как выполненные сегодня! 🎉`,
-            keyboard: habitsKeyboard
-            };
-        } catch (error) {
-            console.error('Error marking all habits complete:', error);
-            return {
-            text: '❌ Произошла ошибка при отметке привычек.',
-            keyboard: habitsKeyboard
-            };
-        }
+      const today = new Date().toISOString().split('T')[0];
+      let markedCount = 0;
+
+      for (let habit of habits) {
+        await this._markHabitAsCompleted(habit.id, today);
+        markedCount++;
+      }
+
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
+      return {
+        text: `✅ Все ${markedCount} привычек отмечены как выполненные сегодня! 🎉`,
+        keyboard: habitsKeyboard
+      };
+    } catch (error) {
+      console.error('Error marking all habits complete:', error);
+      const habitsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('🌱 Новая привычка'),
+          Keyboard.button.message('📊 Мои привычки')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
+      return {
+        text: '❌ Произошла ошибка при отметке привычек.',
+        keyboard: habitsKeyboard
+      };
     }
+  }
 }
 
 module.exports = new HabitsHandler();

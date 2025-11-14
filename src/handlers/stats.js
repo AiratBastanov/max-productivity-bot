@@ -1,8 +1,26 @@
 const db = require('../database');
-const { mainMenu } = require('../utils/keyboards');
+const { Keyboard } = require('@maxhub/max-bot-api');
 
 class StatsHandler {
   async handleMessage(text, userId) {
+    const statsKeyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.message('📊 Общая статистика'),
+        Keyboard.button.message('📈 Недельный отчет')
+      ],
+      [
+        Keyboard.button.message('📝 По задачам'),
+        Keyboard.button.message('🌱 По привычкам')
+      ],
+      [
+        Keyboard.button.message('🍅 По Pomodoro'),
+        Keyboard.button.message('😊 По настроению')
+      ],
+      [
+        Keyboard.button.message('🎯 Главное меню')
+      ]
+    ]);
+
     if (text.includes('обща') || text.includes('свод')) {
       return this.showOverallStats(userId);
     } else if (text.includes('недел') || text.includes('неделя')) {
@@ -39,25 +57,21 @@ class StatsHandler {
       let stats = `📊 **Общая статистика**\n\n`;
       stats += `📅 Отчет на: ${today}\n\n`;
 
-      // Задачи
       stats += `📝 **Задачи:**\n`;
       stats += `• Активные: ${taskStats.active}\n`;
       stats += `• Выполнено сегодня: ${taskStats.completedToday}\n`;
       stats += `• Всего выполнено: ${taskStats.totalCompleted}\n\n`;
 
-      // Привычки
       stats += `🌱 **Привычки:**\n`;
       stats += `• Всего привычек: ${habitStats.total}\n`;
       stats += `• Выполнено сегодня: ${habitStats.completedToday}\n`;
       stats += `• Лучшая серия: ${habitStats.bestStreak} дней\n\n`;
 
-      // Pomodoro
       stats += `🍅 **Pomodoro:**\n`;
       stats += `• Сегодня: ${pomodoroStats.todayCount} сессий\n`;
       stats += `• Всего времени: ${pomodoroStats.totalTime} мин\n`;
       stats += `• За неделю: ${pomodoroStats.weekCount} сессий\n\n`;
 
-      // Настроение
       stats += `😊 **Настроение:**\n`;
       stats += `• Среднее: ${moodStats.average}/5\n`;
       stats += `• Сегодня: ${moodStats.today || 'не отмечено'}\n`;
@@ -65,19 +79,42 @@ class StatsHandler {
 
       stats += `🎯 **Продуктивность сегодня:** ${this._calculateProductivityScore(taskStats, habitStats, pomodoroStats)}%`;
 
+      const overallStatsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📝 По задачам'),
+          Keyboard.button.message('🌱 По привычкам')
+        ],
+        [
+          Keyboard.button.message('🍅 По Pomodoro'),
+          Keyboard.button.message('😊 По настроению')
+        ],
+        [
+          Keyboard.button.message('📈 Недельный отчет'),
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: stats,
-        keyboard: {
-          buttons: [
-            [{ text: '📝 По задачам' }, { text: '🌱 По привычкам' }],
-            [{ text: '🍅 По Pomodoro' }, { text: '😊 По настроению' }],
-            [{ text: '📈 Недельный отчет' }, { text: '🎯 Главное меню' }]
-          ]
-        }
+        keyboard: overallStatsKeyboard
       };
 
     } catch (error) {
       console.error('Error showing overall stats:', error);
+      const mainMenu = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📝 Задачи'),
+          Keyboard.button.message('🌱 Привычки')
+        ],
+        [
+          Keyboard.button.message('🍅 Pomodoro'),
+          Keyboard.button.message('😊 Настроение')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при загрузке статистики.',
         keyboard: mainMenu
@@ -127,18 +164,37 @@ class StatsHandler {
 
       weeklyReport += `🏆 **Итог недели:** ${this._getWeeklySummary(weeklyTasks, weeklyHabits, weeklyPomodoro, weeklyMood)}`;
 
+      const weeklyStatsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📊 Общая статистика'),
+          Keyboard.button.message('📝 Детали по задачам')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: weeklyReport,
-        keyboard: {
-          buttons: [
-            [{ text: '📊 Общая статистика' }, { text: '📝 Детали по задачам' }],
-            [{ text: '🎯 Главное меню' }]
-          ]
-        }
+        keyboard: weeklyStatsKeyboard
       };
 
     } catch (error) {
       console.error('Error showing weekly stats:', error);
+      const mainMenu = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📝 Задачи'),
+          Keyboard.button.message('🌱 Привычки')
+        ],
+        [
+          Keyboard.button.message('🍅 Pomodoro'),
+          Keyboard.button.message('😊 Настроение')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при загрузке недельного отчета.',
         keyboard: mainMenu
@@ -166,18 +222,37 @@ class StatsHandler {
 
       taskStats += `\n🎯 **Рекомендация:** ${this._getTaskRecommendation(stats)}`;
 
+      const taskStatsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📊 Общая статистика'),
+          Keyboard.button.message('📈 Недельный отчет')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: taskStats,
-        keyboard: {
-          buttons: [
-            [{ text: '📊 Общая статистика' }, { text: '📈 Недельный отчет' }],
-            [{ text: '🎯 Главное меню' }]
-          ]
-        }
+        keyboard: taskStatsKeyboard
       };
 
     } catch (error) {
       console.error('Error showing task stats:', error);
+      const mainMenu = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📝 Задачи'),
+          Keyboard.button.message('🌱 Привычки')
+        ],
+        [
+          Keyboard.button.message('🍅 Pomodoro'),
+          Keyboard.button.message('😊 Настроение')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при загрузке статистики задач.',
         keyboard: mainMenu
@@ -185,7 +260,195 @@ class StatsHandler {
     }
   }
 
-  // Вспомогательные методы для сбора статистики
+  async showHabitStats(userId) {
+    try {
+      const habits = await db.all(
+        `SELECT h.*, 
+         COUNT(hc.id) as total_days,
+         SUM(CASE WHEN hc.completed = 1 THEN 1 ELSE 0 END) as completed_days
+         FROM habits h
+         LEFT JOIN habit_checks hc ON h.id = hc.habit_id
+         WHERE h.user_id = ?
+         GROUP BY h.id`,
+        [userId]
+      );
+
+      if (habits.length === 0) {
+        const habitsKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('🌱 Новая привычка'),
+            Keyboard.button.message('📊 Мои привычки')
+          ],
+          [
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
+
+        return {
+          text: '📊 У вас пока нет привычек для статистики.',
+          keyboard: habitsKeyboard
+        };
+      }
+
+      let stats = '📊 **Статистика привычек:**\n\n';
+      
+      for (let habit of habits) {
+        const completionRate = habit.total_days > 0 
+          ? Math.round((habit.completed_days / habit.total_days) * 100) 
+          : 0;
+
+        stats += `**${habit.name}**\n`;
+        stats += `🔥 Текущая серия: ${habit.current_streak} дней\n`;
+        stats += `🏆 Лучшая серия: ${habit.best_streak} дней\n`;
+        stats += `✅ Выполнено: ${habit.completed_days}/${habit.total_days} дней (${completionRate}%)\n\n`;
+      }
+
+      const habitStatsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📊 Общая статистика'),
+          Keyboard.button.message('📈 Недельный отчет')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
+      return {
+        text: stats,
+        keyboard: habitStatsKeyboard
+      };
+    } catch (error) {
+      console.error('Error showing habit stats:', error);
+      const mainMenu = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📝 Задачи'),
+          Keyboard.button.message('🌱 Привычки')
+        ],
+        [
+          Keyboard.button.message('🍅 Pomodoro'),
+          Keyboard.button.message('😊 Настроение')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика')
+        ]
+      ]);
+
+      return {
+        text: '❌ Произошла ошибка при загрузке статистики привычек.',
+        keyboard: mainMenu
+      };
+    }
+  }
+
+  async showPomodoroStats(userId) {
+    try {
+      const stats = await this._getPomodoroStats(userId);
+      
+      let pomodoroStats = `🍅 **Статистика Pomodoro**\n\n`;
+      pomodoroStats += `📅 **Сегодня:**\n`;
+      pomodoroStats += `• Сессии: ${stats.todayCount}\n`;
+      pomodoroStats += `• Время: ${stats.todayTime} мин\n\n`;
+      pomodoroStats += `📈 **За неделю:**\n`;
+      pomodoroStats += `• Сессии: ${stats.weekCount}\n`;
+      pomodoroStats += `• Время: ${stats.weekTime} мин\n\n`;
+      pomodoroStats += `🏆 **Всего:**\n`;
+      pomodoroStats += `• Сессии: ${stats.totalCount}\n`;
+      pomodoroStats += `• Время: ${stats.totalTime} мин\n\n`;
+      pomodoroStats += `🎯 **Совет:** Старайтесь делать 4-8 помидорок в день для максимальной продуктивности!`;
+
+      const pomodoroStatsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📊 Общая статистика'),
+          Keyboard.button.message('📈 Недельный отчет')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
+      return {
+        text: pomodoroStats,
+        keyboard: pomodoroStatsKeyboard
+      };
+
+    } catch (error) {
+      console.error('Error showing pomodoro stats:', error);
+      const mainMenu = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📝 Задачи'),
+          Keyboard.button.message('🌱 Привычки')
+        ],
+        [
+          Keyboard.button.message('🍅 Pomodoro'),
+          Keyboard.button.message('😊 Настроение')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика')
+        ]
+      ]);
+
+      return {
+        text: '❌ Произошла ошибка при загрузке статистики Pomodoro.',
+        keyboard: mainMenu
+      };
+    }
+  }
+
+  async showMoodStats(userId) {
+    try {
+      const stats = await this._getMoodStats(userId);
+      
+      let moodStats = `😊 **Статистика настроения**\n\n`;
+      moodStats += `📊 **Общее:**\n`;
+      moodStats += `• Среднее настроение: ${stats.average}/5\n`;
+      moodStats += `• Всего записей: ${stats.totalEntries}\n\n`;
+      
+      if (stats.today) {
+        moodStats += `📅 **Сегодня:**\n`;
+        moodStats += `• Настроение: ${stats.today}\n\n`;
+      }
+      
+      moodStats += `💡 **Рекомендация:** ${this._getMoodAdvice(parseFloat(stats.average))}`;
+
+      const moodStatsKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📊 Общая статистика'),
+          Keyboard.button.message('📈 Недельный отчет')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
+      return {
+        text: moodStats,
+        keyboard: moodStatsKeyboard
+      };
+
+    } catch (error) {
+      console.error('Error showing mood stats:', error);
+      const mainMenu = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('📝 Задачи'),
+          Keyboard.button.message('🌱 Привычки')
+        ],
+        [
+          Keyboard.button.message('🍅 Pomodoro'),
+          Keyboard.button.message('😊 Настроение')
+        ],
+        [
+          Keyboard.button.message('📊 Статистика')
+        ]
+      ]);
+
+      return {
+        text: '❌ Произошла ошибка при загрузке статистики настроения.',
+        keyboard: mainMenu
+      };
+    }
+  }
+
+  // Вспомогательные методы для сбора статистики (остаются без изменений)
   async _getTaskStats(userId) {
     const today = new Date().toISOString().split('T')[0];
     
@@ -299,13 +562,8 @@ class StatsHandler {
   _calculateProductivityScore(taskStats, habitStats, pomodoroStats) {
     let score = 0;
     
-    // Задачи: максимум 40 баллов
     if (taskStats.completedToday > 0) score += Math.min(taskStats.completedToday * 10, 40);
-    
-    // Привычки: максимум 30 баллов
     if (habitStats.completedToday > 0) score += Math.min(habitStats.completedToday * 6, 30);
-    
-    // Pomodoro: максимум 30 баллов
     if (pomodoroStats.todayCount > 0) score += Math.min(pomodoroStats.todayCount * 6, 30);
     
     return Math.min(score, 100);
@@ -318,8 +576,15 @@ class StatsHandler {
     return 'Начните с самых важных задач. Вы можете это сделать! 💪';
   }
 
+  _getMoodAdvice(avgMood) {
+    if (avgMood >= 4.5) return 'Продолжайте в том же духе! Ваше позитивное отношение вдохновляет!';
+    if (avgMood >= 3.5) return 'Хороший баланс! Может, попробовать новое хобби для разнообразия?';
+    if (avgMood >= 2.5) return 'Старайтесь находить маленькие радости в каждом дне.';
+    return 'Помните, что можно всегда обратиться за поддержкой. Вы не одни!';
+  }
+
   _getWeeklySummary(tasks, habits, pomodoro, mood) {
-    const totalScore = (tasks.completionRate + habits.completionRate + (pomodoro.sessions * 10) + (mood.average * 10)) / 4;
+    const totalScore = (tasks.completionRate + habits.completionRate + (pomodoro.sessions * 10) + (parseFloat(mood.average) * 10)) / 4;
     
     if (totalScore >= 80) return 'Великолепная неделя! Вы на пике продуктивности! 🌟';
     if (totalScore >= 60) return 'Хорошая неделя! Есть к чему стремиться! 💪';
@@ -327,7 +592,6 @@ class StatsHandler {
     return 'Каждая неделя - новый шанс! Начните с маленьких шагов. 🚀';
   }
 
-  // Методы для недельной статистики
   async _getWeeklyTaskStats(userId, weekAgo) {
     const result = await db.get(
       `SELECT 

@@ -1,8 +1,20 @@
 const db = require('../database');
-const { tasksKeyboard } = require('../utils/keyboards');
+const { Keyboard } = require('@maxhub/max-bot-api');
+const { setUserState } = require('../index');
 
 class TasksHandler {
   async handleMessage(text, userId) {
+    const tasksKeyboard = Keyboard.inlineKeyboard([
+      [
+        Keyboard.button.message('➕ Новая задача'),
+        Keyboard.button.message('📋 Мои задачи')
+      ],
+      [
+        Keyboard.button.message('✅ Выполненные'),
+        Keyboard.button.message('🎯 Главное меню')
+      ]
+    ]);
+
     if (text.includes('новая') || text.includes('добав')) {
       return this.addTask(userId);
     } else if (text.includes('мои') || text.includes('список')) {
@@ -18,12 +30,15 @@ class TasksHandler {
   }
 
   async addTask(userId) {
+    setUserState(userId, 'awaiting_task_title');
+    
+    const cancelKeyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.message('Отмена')]
+    ]);
+
     return {
       text: '📝 Напишите название новой задачи:',
-      keyboard: {
-        buttons: [[{ text: 'Отмена' }]]
-      },
-      state: 'awaiting_task_title' // Состояние для следующего сообщения
+      keyboard: cancelKeyboard
     };
   }
 
@@ -35,6 +50,16 @@ class TasksHandler {
       );
 
       if (tasks.length === 0) {
+        const tasksKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('➕ Новая задача'),
+            Keyboard.button.message('📋 Мои задачи')
+          ],
+          [
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
+
         return {
           text: '🎉 Отлично! У вас нет активных задач.',
           keyboard: tasksKeyboard
@@ -49,12 +74,32 @@ class TasksHandler {
 
       taskList += '\nНапишите "Выполнил X" чтобы отметить задачу выполненной.';
 
+      const tasksKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('➕ Новая задача'),
+          Keyboard.button.message('📋 Мои задачи')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: taskList,
         keyboard: tasksKeyboard
       };
     } catch (error) {
       console.error('Error listing tasks:', error);
+      const tasksKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('➕ Новая задача'),
+          Keyboard.button.message('📋 Мои задачи')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при загрузке задач.',
         keyboard: tasksKeyboard
@@ -66,6 +111,16 @@ class TasksHandler {
     const taskNumber = parseInt(text.match(/\d+/)?.[0]);
     
     if (!taskNumber) {
+      const tasksKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('➕ Новая задача'),
+          Keyboard.button.message('📋 Мои задачи')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Укажите номер задачи. Например: "Выполнил 1"',
         keyboard: tasksKeyboard
@@ -79,6 +134,16 @@ class TasksHandler {
       );
 
       if (taskNumber < 1 || taskNumber > tasks.length) {
+        const tasksKeyboard = Keyboard.inlineKeyboard([
+          [
+            Keyboard.button.message('➕ Новая задача'),
+            Keyboard.button.message('📋 Мои задачи')
+          ],
+          [
+            Keyboard.button.message('🎯 Главное меню')
+          ]
+        ]);
+
         return {
           text: `❌ Задача с номером ${taskNumber} не найдена.`,
           keyboard: tasksKeyboard
@@ -91,12 +156,32 @@ class TasksHandler {
         [task.id]
       );
 
+      const tasksKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('➕ Новая задача'),
+          Keyboard.button.message('📋 Мои задачи')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: `✅ Задача "${task.title}" выполнена! Отлично! 🎉`,
         keyboard: tasksKeyboard
       };
     } catch (error) {
       console.error('Error completing task:', error);
+      const tasksKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('➕ Новая задача'),
+          Keyboard.button.message('📋 Мои задачи')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при выполнении задачи.',
         keyboard: tasksKeyboard
@@ -111,12 +196,32 @@ class TasksHandler {
         [userId, title]
       );
 
+      const tasksKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('➕ Новая задача'),
+          Keyboard.button.message('📋 Мои задачи')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: `✅ Задача "${title}" создана!`,
         keyboard: tasksKeyboard
       };
     } catch (error) {
       console.error('Error creating task:', error);
+      const tasksKeyboard = Keyboard.inlineKeyboard([
+        [
+          Keyboard.button.message('➕ Новая задача'),
+          Keyboard.button.message('📋 Мои задачи')
+        ],
+        [
+          Keyboard.button.message('🎯 Главное меню')
+        ]
+      ]);
+
       return {
         text: '❌ Произошла ошибка при создании задачи.',
         keyboard: tasksKeyboard
